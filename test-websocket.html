@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket RTSP Test</title>
+</head>
+<body>
+    <h1>WebSocket RTSP Stream Test</h1>
+    <div>
+        <button onclick="testConnection()">Test WebSocket Connection</button>
+        <button onclick="loadJSMpeg()">Test JSMpeg Loading</button>
+    </div>
+    <div id="status"></div>
+    <canvas id="video-canvas" width="640" height="480" style="border: 1px solid black;"></canvas>
+
+    <script>
+        function log(message) {
+            document.getElementById('status').innerHTML += message + '<br>';
+            console.log(message);
+        }
+
+        function testConnection() {
+            log('🔌 Testing WebSocket connection...');
+            
+            const ws = new WebSocket('ws://localhost:9999/rtsp-stream?test=true');
+            
+            ws.onopen = () => {
+                log('✅ WebSocket connected successfully');
+                ws.close();
+            };
+            
+            ws.onerror = (error) => {
+                log('❌ WebSocket connection failed: ' + error);
+            };
+            
+            ws.onclose = (event) => {
+                log('🔌 WebSocket closed: ' + event.code + ' - ' + event.reason);
+            };
+        }
+
+        function loadJSMpeg() {
+            log('📚 Testing JSMpeg library loading...');
+            
+            if (window.JSMpeg) {
+                log('✅ JSMpeg already loaded');
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = '/jsmpeg.min.js';
+            
+            script.onload = () => {
+                log('✅ JSMpeg loaded successfully');
+                log('JSMpeg version: ' + (window.JSMpeg ? 'Available' : 'Not available'));
+            };
+            
+            script.onerror = () => {
+                log('❌ Failed to load JSMpeg library');
+            };
+            
+            document.head.appendChild(script);
+        }
+
+        function testFullStream() {
+            log('🎬 Testing full RTSP stream...');
+            
+            const cameraId = 'test-camera';
+            const rtspUrl = 'rtsp://10.254.12.134:9000/live';
+            
+            const ws = new WebSocket(`ws://localhost:9999/rtsp-stream?camera=${cameraId}&rtsp=${encodeURIComponent(rtspUrl)}`);
+            
+            ws.onopen = () => {
+                log('✅ Stream WebSocket connected');
+            };
+            
+            ws.onmessage = (event) => {
+                log('📨 Message: ' + event.data);
+                
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'stream_ready') {
+                        log('📹 Stream ready on port: ' + data.wsPort);
+                        startPlayer(data.wsPort);
+                    }
+                } catch (e) {
+                    log('❌ Message parse error: ' + e);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                log('❌ Stream WebSocket error: ' + error);
+            };
+        }
+
+        function startPlayer(port) {
+            if (!window.JSMpeg) {
+                log('❌ JSMpeg not loaded');
+                return;
+            }
+
+            log('🎬 Starting JSMpeg player on port: ' + port);
+            
+            const canvas = document.getElementById('video-canvas');
+            const player = new JSMpeg.Player(`ws://localhost:${port}`, {
+                canvas: canvas,
+                autoplay: true,
+                audio: false
+            });
+            
+            log('✅ JSMpeg player started');
+        }
+    </script>
+    
+    <div style="margin-top: 20px;">
+        <button onclick="testFullStream()">Test Full RTSP Stream</button>
+    </div>
+</body>
+</html>

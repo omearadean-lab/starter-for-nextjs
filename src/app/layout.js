@@ -1,6 +1,10 @@
+import { AuthProvider } from '@/contexts/AuthContext';
+import { Toaster } from 'react-hot-toast';
+import './app.css';
+
 export const metadata = {
-  title: "Appwrite + Next.js",
-  description: "Appwrite starter for Next.js",
+  title: "UMA AEye Monitoring System",
+  description: "Advanced AI-powered CCTV monitoring and security management platform",
 };
 
 export default function RootLayout({ children }) {
@@ -16,8 +20,11 @@ export default function RootLayout({ children }) {
         />
         <link rel="icon" type="image/svg+xml" href="/appwrite.svg" />
       </head>
-      <body className={"bg-[#FAFAFB] font-[Inter] text-sm text-[#56565C]"}>
-        {children}
+      <body className="bg-gray-50 font-sans text-sm text-gray-900">
+        <AuthProvider>
+          {children}
+          <Toaster position="top-right" />
+        </AuthProvider>
       </body>
     </html>
   );

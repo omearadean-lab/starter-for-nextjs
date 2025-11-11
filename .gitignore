@@ -20,7 +20,29 @@
 # misc
 .DS_Store
 *.pem
+
+# go2rtc streaming server
+go2rtc
+go2rtc_*.zip
+go2rtc_*.tar.gz
+
+# IDE files
 .idea
+.vscode/
+*.swp
+*.swo
+
+# Docker
+.dockerignore.bak
+
+# Documentation backups
+*.md.bak
+*_OLD.md
+*_BACKUP.md
+
+# Temporary files
+*.tmp
+*.temp
 
 # debug
 npm-debug.log*

@@ -1,0 +1,17 @@
+api:
+    cors:
+        origin: '*'
+    listen: :1984
+log:
+    level: info
+streams:
+    org_158a2cb0_cf1318ae_office_cam:
+        - rtsps://10.9.8.254:7441/UEzJERH4BECgMwTA?enableSrtp
+    test_office_cam:
+        - rtsp://demo:demo@ipvmdemo.dyndns.org:5541/onvif-media/media.amp?profile=profile_1_h264
+    test_office_simple:
+        - rtsp://demo:demo@ipvmdemo.dyndns.org:5541/onvif-media/media.amp?profile=profile_1_h264
+    test_stream:
+        - ffmpeg:testsrc2=size=640x480:rate=15#video=h264#audio=aac
+webrtc:
+    listen: :8555

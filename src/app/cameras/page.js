@@ -26,8 +26,9 @@ import { databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import toast from 'react-hot-toast';
 import { ID } from 'appwrite';
 
-// Camera protocols that customers commonly use
+// Camera protocols supported by go2rtc
 const CAMERA_PROTOCOLS = {
+  // Traditional IP Camera Protocols
   RTSP: 'rtsp',
   RTSPS: 'rtsps', // RTSP over TLS/SSL - Secure
   HTTP: 'http',
@@ -35,11 +36,43 @@ const CAMERA_PROTOCOLS = {
   RTMP: 'rtmp',
   RTMPS: 'rtmps', // RTMP over TLS/SSL - Secure
   HLS: 'hls',
+  MJPEG: 'mjpeg',
   WEBRTC: 'webrtc',
-  ONVIF: 'onvif'
+  
+  // Professional Camera Standards
+  ONVIF: 'onvif',
+  ISAPI: 'isapi', // Hikvision API
+  DVRIP: 'dvrip', // Dahua DVR protocol
+  
+  // Smart Home & IoT Cameras
+  HOMEKIT: 'homekit', // Apple HomeKit cameras
+  TAPO: 'tapo', // TP-Link Tapo cameras
+  KASA: 'kasa', // TP-Link Kasa cameras
+  
+  // Cloud & Consumer Cameras
+  RING: 'ring', // Ring doorbells/cameras
+  NEST: 'nest', // Google Nest cameras
+  IVIDEON: 'ivideon', // Ivideon cloud cameras
+  HASS: 'hass', // Home Assistant integration
+  
+  // Action Cameras & Special Devices
+  GOPRO: 'gopro', // GoPro cameras
+  ROBOROCK: 'roborock', // Roborock vacuum cameras
+  
+  // Advanced Sources
+  FFMPEG: 'ffmpeg', // Custom FFmpeg source
+  FFMPEG_DEVICE: 'ffmpeg_device', // Local devices (webcams, etc.)
+  BUBBLE: 'bubble', // Bubble protocol
+  WEBTORRENT: 'webtorrent', // WebTorrent streaming
+  
+  // Custom & Development
+  EXEC: 'exec', // Execute custom command
+  ECHO: 'echo', // Echo/test source
+  EXPR: 'expr' // Expression-based source
 };
 
 const CAMERA_BRANDS = {
+  // Professional IP Cameras
   HIKVISION: 'Hikvision',
   DAHUA: 'Dahua',
   AXIS: 'Axis',
@@ -48,8 +81,33 @@ const CAMERA_BRANDS = {
   SAMSUNG: 'Samsung',
   PANASONIC: 'Panasonic',
   VIVOTEK: 'Vivotek',
+  HANWHA: 'Hanwha Techwin',
   FLIR: 'FLIR',
+  
+  // Consumer & Smart Home
+  RING: 'Ring',
+  NEST: 'Google Nest',
+  ARLO: 'Arlo',
+  WYZE: 'Wyze',
+  EUFY: 'Eufy Security',
+  REOLINK: 'Reolink',
+  AMCREST: 'Amcrest',
+  
+  // TP-Link Cameras
+  TAPO: 'TP-Link Tapo',
+  KASA: 'TP-Link Kasa',
+  
+  // Action & Special Cameras
+  GOPRO: 'GoPro',
+  ROBOROCK: 'Roborock',
+  
+  // Cloud Services
+  IVIDEON: 'Ivideon',
+  
+  // Additional Professional
   UNIVIEW: 'Uniview',
+  
+  // Generic/Other
   GENERIC: 'Generic/Other'
 };
 

@@ -17,15 +17,19 @@ A comprehensive multi-tenant AI-powered CCTV monitoring and security management 
 - **People Counting**: Monitor occupancy levels
 
 ### Real-time Features
-- Live camera feeds
-- Instant alert notifications
-- Real-time status monitoring
-- Dashboard analytics
+- **Live Camera Feeds**: Professional RTSP/RTSPS streaming via go2rtc
+- **Multiple Stream Formats**: WebRTC, HLS, MP4 with automatic fallbacks
+- **Low Latency Streaming**: Sub-second latency with WebRTC
+- **Instant Alert Notifications**: Real-time push notifications
+- **Real-time Status Monitoring**: Live camera status and health
+- **Dashboard Analytics**: Real-time metrics and insights
 
 ## 🛠️ Technology Stack
 
 - **Frontend**: Next.js 15, React 19, TailwindCSS
 - **Backend**: Appwrite (Database, Auth, Storage, Functions, Messaging)
+- **Streaming**: go2rtc (Professional RTSP/WebRTC streaming server)
+- **Video Protocols**: RTSP, RTSPS, WebRTC, HLS, MP4
 - **UI Components**: Heroicons, Headless UI
 - **Charts**: Recharts
 - **Notifications**: React Hot Toast
@@ -49,7 +53,40 @@ cd cctv-monitoring-saas
 npm install
 ```
 
-### 3. Configure Appwrite
+### 3. Configure Video Streaming
+
+The system uses **go2rtc** for professional RTSP/RTSPS streaming with multiple output formats and **CORS-enabled proxy** for seamless browser integration.
+
+#### Streaming Architecture
+- **go2rtc Server**: Professional streaming server (port 1984)
+- **Next.js API Proxy**: CORS-enabled proxy at `/api/go2rtc-proxy`
+- **Dynamic Stream Registration**: Cameras automatically registered via API
+- **Multiple Fallbacks**: WebRTC → HLS → MP4 with automatic failover
+
+#### Development Scripts
+```bash
+# 🚀 START SERVERS (Primary command)
+npm run dev:full
+
+# 🛑 KILL ALL SERVERS
+pkill -f "go2rtc\|npm\|next"
+
+# Individual server commands
+npm run streaming        # Start only go2rtc
+npm run dev             # Start only Next.js
+npm run cleanup:streaming # Clean up old components
+```
+
+#### Supported Protocols & Features
+- **RTSP/RTSPS**: Direct camera connections with secure encryption
+- **WebRTC**: Ultra-low latency (sub-second) - preferred method
+- **HLS**: HTTP Live Streaming for broad browser compatibility  
+- **MP4**: Direct HTTP stream fallback
+- **Multi-tenant Stream IDs**: `org_{orgId}_{cameraId}_{name}` format
+- **CORS Proxy**: Seamless browser-to-go2rtc communication
+- **Auto-reconnection**: Intelligent connection retry logic
+
+### 4. Configure Appwrite
 
 #### Create Appwrite Project
 1. Go to [Appwrite Console](https://cloud.appwrite.io)
@@ -272,15 +309,74 @@ For testing the application, demo credentials are available in the `DEMO_CREDENT
 
 ## 🚀 Deployment
 
-### Using Vercel (Recommended)
+### Using Docker (Recommended for Production)
+
+#### Prerequisites
+- Docker and Docker Compose installed
+- `.env` file configured with Appwrite credentials
+
+#### Production Deployment
+```bash
+# Build and start production containers
+npm run docker:prod
+
+# Or manually with docker-compose
+docker-compose up -d cctv-app
+
+# View logs
+docker-compose logs -f cctv-app
+
+# Stop services
+npm run docker:stop
+```
+
+#### Development with Docker
+```bash
+# Start development environment
+npm run docker:dev
+
+# Or manually
+docker-compose --profile dev up cctv-dev
+```
+
+#### Docker Management
+```bash
+# Build custom image
+npm run docker:build
+
+# Clean up containers and volumes
+npm run docker:clean
+
+# View container status
+docker-compose ps
+```
+
+#### Environment Variables for Docker
+Create a `.env` file in the project root:
+```env
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_APPWRITE_PROJECT_NAME=CCTV_Monitoring
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+OPENAI_API_KEY=your_openai_key
+```
+
+#### Ports Exposed
+- **3000**: Next.js application
+- **1984**: go2rtc web interface and API
+- **8554**: RTSP server for camera connections
+- **8555**: WebRTC server for low-latency streaming
+
+### Using Vercel
 1. Connect your repository to Vercel
 2. Add environment variables
 3. Deploy
+4. **Note**: go2rtc streaming server requires separate hosting (VPS/dedicated server)
 
 ### Using Netlify
 1. Build the project: `npm run build`
 2. Deploy the `out` folder to Netlify
 3. Configure environment variables
+4. **Note**: Streaming functionality requires separate go2rtc server deployment
 
 ## 🤝 Contributing
 
@@ -300,10 +396,52 @@ For support and questions:
 - Create an issue in this repository
 - Contact the development team
 
+## 🆕 Recent Updates & Fixes (November 2025)
+
+### ✅ CORS & Streaming Issues Resolved
+- **Fixed CORS Policy Errors**: Implemented Next.js API proxy (`/api/go2rtc-proxy`) to eliminate browser CORS blocks
+- **Resolved Error Flooding**: Fixed infinite connection loops and multiple simultaneous attempts
+- **Enhanced Error Handling**: Proper event listener cleanup and graceful fallbacks
+- **Dynamic Stream Registration**: Cameras now auto-register with go2rtc via API calls
+
+### 🔧 Technical Improvements
+- **Multi-Protocol Support**: Enhanced support for RTSPS (secure RTSP) with proper encryption
+- **Connection Throttling**: Intelligent connection management to prevent resource exhaustion  
+- **Proxy Architecture**: Server-side go2rtc communication for production-ready CORS handling
+- **Error Recovery**: Robust error handling with automatic retry mechanisms
+- **Stream Lifecycle**: Proper stream cleanup and connection state management
+
+### 🐛 Bug Fixes
+- Fixed `Maximum update depth exceeded` React errors
+- Resolved `net::ERR_FAILED` and `500 Internal Server Error` issues
+- Fixed video element error loops causing browser crashes
+- Corrected go2rtc configuration reload requirements
+- Updated outdated UniFi-specific error messages to generic RTSP/RTSPS guidance
+
+### 📊 Server Management
+```bash
+# Start all services (go2rtc + Next.js)
+npm run dev:full
+
+# Kill all running servers
+pkill -f "go2rtc\|npm\|next"
+
+# Check server status
+curl -s http://localhost:1984/api        # go2rtc health
+curl -s http://localhost:3000/api/health # Next.js health (if endpoint exists)
+```
+
+### 🔍 Troubleshooting Network Issues
+- **Camera Connectivity**: Use `ping <camera-ip>` and `nc -z -v <camera-ip> <port>` to test
+- **RTSPS Authentication**: Ensure credentials are included: `rtsps://user:pass@ip:port/path`
+- **go2rtc Logs**: Check terminal output for connection timeouts or authentication failures
+- **Stream Registration**: Verify streams appear in `curl -s http://localhost:1984/api/streams`
+
 ## 🔮 Future Enhancements
 
 - Mobile application
-- Advanced AI model integration
+- Advanced AI model integration  
 - Video analytics dashboard
 - Integration with third-party security systems
 - Advanced reporting and export features
+- Docker containerization for easier deployment

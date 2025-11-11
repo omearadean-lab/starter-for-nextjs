@@ -1,5 +1,6 @@
 import { databases, storage, DATABASE_ID, COLLECTIONS, ALERT_TYPES } from './appwrite';
 import { ID, Query } from 'appwrite';
+import { go2rtcManager } from './go2rtc-manager';
 
 export class CameraService {
   // Add new CCTV camera
@@ -12,7 +13,11 @@ export class CameraService {
         {
           name: data.name,
           location: data.location,
-          rtspUrl: data.rtspUrl,
+          rtspUrl: data.rtspUrl || data.streamUrl, // Backward compatibility
+          streamUrl: data.streamUrl,
+          protocol: data.protocol || 'rtsp',
+          brand: data.brand,
+          model: data.model,
           organizationId: data.organizationId,
           isActive: true,
           status: 'online',
@@ -32,6 +37,20 @@ export class CameraService {
           lastSeen: new Date().toISOString()
         }
       );
+
+      // Register camera with go2rtc for streaming
+      if (camera.rtspUrl || camera.streamUrl) {
+        console.log('📡 Registering camera with go2rtc...');
+        const streamResult = await go2rtcManager.addStream(camera);
+        
+        if (streamResult.success) {
+          console.log(`✅ Camera registered with go2rtc: ${streamResult.streamId}`);
+        } else {
+          console.warn(`⚠️ Failed to register camera with go2rtc: ${streamResult.error}`);
+          // Don't fail the camera creation, just log the warning
+        }
+      }
+
       return camera;
     } catch (error) {
       throw error;
@@ -68,7 +87,10 @@ export class CameraService {
   // Update camera
   async updateCamera(cameraId, data) {
     try {
-      return await databases.updateDocument(
+      // Get current camera for go2rtc operations
+      const currentCamera = await this.getCamera(cameraId);
+      
+      const updatedCamera = await databases.updateDocument(
         DATABASE_ID,
         COLLECTIONS.CCTV_CAMERAS,
         cameraId,
@@ -77,6 +99,20 @@ export class CameraService {
           updatedAt: new Date().toISOString()
         }
       );
+
+      // Update go2rtc stream if URL changed
+      if (data.rtspUrl || data.streamUrl) {
+        console.log('📡 Updating camera stream in go2rtc...');
+        const streamResult = await go2rtcManager.updateStream(updatedCamera);
+        
+        if (streamResult.success) {
+          console.log(`✅ Camera stream updated in go2rtc: ${streamResult.streamId}`);
+        } else {
+          console.warn(`⚠️ Failed to update camera stream in go2rtc: ${streamResult.error}`);
+        }
+      }
+
+      return updatedCamera;
     } catch (error) {
       throw error;
     }
@@ -102,6 +138,22 @@ export class CameraService {
   // Delete camera
   async deleteCamera(cameraId) {
     try {
+      // Get camera data before deletion for go2rtc cleanup
+      const camera = await this.getCamera(cameraId);
+      
+      // Remove from go2rtc first
+      if (camera.rtspUrl || camera.streamUrl) {
+        console.log('📡 Removing camera stream from go2rtc...');
+        const streamResult = await go2rtcManager.removeStream(camera);
+        
+        if (streamResult.success) {
+          console.log(`✅ Camera stream removed from go2rtc: ${streamResult.streamId}`);
+        } else {
+          console.warn(`⚠️ Failed to remove camera stream from go2rtc: ${streamResult.error}`);
+        }
+      }
+
+      // Delete from database
       return await databases.deleteDocument(
         DATABASE_ID,
         COLLECTIONS.CCTV_CAMERAS,

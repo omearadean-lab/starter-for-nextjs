@@ -4,8 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams } from 'next/navigation';
 import Layout from '@/components/Layout';
-import WebSocketVideoPlayer from '@/components/WebSocketVideoPlayer';
-import H264VideoPlayer from '@/components/H264VideoPlayer';
+import Go2RTCPlayer from '@/components/Go2RTCPlayer';
 import { 
   VideoCameraIcon,
   PlayIcon,
@@ -24,7 +23,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { Query } from 'appwrite';
-import { cameraStreamingService } from '@/lib/camera-streaming';
 import toast from 'react-hot-toast';
 
 export default function LiveViewPage() {
@@ -50,21 +48,11 @@ export default function LiveViewPage() {
       loadCameras();
     }
     
-    // Cleanup function to stop streams when component unmounts
-    return () => {
-      if (selectedCamera) {
-        cameraStreamingService.stopStream(selectedCamera.$id);
-      }
-    };
+    // Cleanup function - go2rtc handles cleanup automatically
   }, [user, organization]);
   
   useEffect(() => {
-    // Cleanup streams when selectedCamera changes
-    return () => {
-      if (selectedCamera) {
-        cameraStreamingService.stopStream(selectedCamera.$id);
-      }
-    };
+    // Camera changes are handled by Go2RTCPlayer component
   }, [selectedCamera]);
 
   useEffect(() => {
@@ -123,55 +111,24 @@ export default function LiveViewPage() {
         return;
       }
       
-      setConnectionStatus('connecting');
+      // For RTSP/RTSPS cameras, just select them - Go2RTCPlayer handles connection
+      if (camera.protocol === 'rtsp' || camera.protocol === 'rtsps') {
+        setSelectedCamera(camera);
+        setIsIframeMode(false);
+        console.log(`🎥 Selected ${camera.protocol.toUpperCase()} camera: ${camera.name}`);
+        return;
+      }
+      
+      // For other camera types, handle manual connection
       setSelectedCamera(camera);
-      setIsIframeMode(false); // Ensure we're in video mode for normal connection
+      setIsIframeMode(false);
+      setConnectionStatus('connecting');
       
-      // For RTSP cameras, show appropriate connecting message
-      if (camera.protocol === 'rtsp') {
-        toast.loading('Converting RTSP stream for web playback...', { id: 'rtsp-conversion' });
-      }
-      
-      // Wait for video element to be available
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      if (!videoRef.current && camera.protocol !== 'rtsp') {
-        throw new Error('Video element not ready');
-      }
-      
-      // Use the camera streaming service to handle the connection
-      const result = await cameraStreamingService.startStream(camera, videoRef.current);
-      
-      if (result.success) {
-        // Dismiss loading toast
-        toast.dismiss('rtsp-conversion');
-        
-        if (result.useWebSocket) {
-          // Switch to WebSocket streaming mode
-          setStreamingType('websocket');
-          setConnectionStatus('connected');
-          setIsPlaying(true);
-          toast.success(`📹 Connected to ${camera.name}`);
-        } else {
-          // Regular video element streaming
-          setStreamingType('video');
-          setConnectionStatus('connected');
-          setIsPlaying(true);
-          
-          if (result.encrypted) {
-            toast.success(`🔒 Connected to ${camera.name} (Encrypted)`);
-          } else {
-            toast.success(`📹 Connected to ${camera.name}`);
-          }
-        }
-      } else {
-        throw new Error(result.error || 'Connection failed');
-      }
+      console.log(`🎥 Connecting to camera: ${camera.name} (${camera.protocol})`);
+      toast.success(`Camera selected: ${camera.name}`);
       
     } catch (error) {
       console.error('Error connecting to camera:', error);
-      // Dismiss any loading toasts
-      toast.dismiss('rtsp-conversion');
       setConnectionStatus('error');
       toast.error(`Failed to connect to ${camera.name}`);
     }
@@ -224,10 +181,7 @@ export default function LiveViewPage() {
     try {
       console.log('🖼️ Attempting iframe embed for UniFi web interface...');
       
-      // First, stop any existing video stream
-      if (selectedCamera) {
-        cameraStreamingService.stopStream(selectedCamera.$id);
-      }
+      // Go2RTCPlayer will handle cleanup automatically
       
       // Find the video container
       const videoContainer = videoRef.current?.parentElement;
@@ -409,19 +363,11 @@ export default function LiveViewPage() {
                 <>
                   {/* Video Display Area */}
                   {(selectedCamera?.protocol === 'rtsp' || selectedCamera?.protocol === 'rtsps') ? (
-                    <H264VideoPlayer
-                      camera={selectedCamera}
-                      onConnectionChange={(status) => {
-                        setConnectionStatus(status);
-                        if (status === 'connected') {
-                          setIsPlaying(true);
-                        }
+                    <Go2RTCPlayer
+                      camera={{
+                        ...selectedCamera,
+                        streamId: selectedCamera.name.toLowerCase().replace(/\s+/g, '_')
                       }}
-                      className="w-full h-full"
-                    />
-                  ) : streamingType === 'websocket' ? (
-                    <WebSocketVideoPlayer
-                      camera={selectedCamera}
                       onConnectionChange={(status) => {
                         setConnectionStatus(status);
                         if (status === 'connected') {
@@ -499,12 +445,12 @@ export default function LiveViewPage() {
                               </>
                             ) : (
                               <>
-                                <li>• <strong>Confirmed:</strong> UniFi URL is web interface, not video stream</li>
-                                <li>• <strong>Error Code 4:</strong> MEDIA_ERR_SRC_NOT_SUPPORTED</li>
-                                <li>• <strong>CORS Blocked:</strong> Access-Control-Allow-Origin missing</li>
-                                <li>• <strong>Status 206:</strong> Server sending partial content (HTML)</li>
-                                <li>• <strong>Solution:</strong> Use iframe embed for web interfaces</li>
-                                <li>• <strong>Recommended:</strong> Try "Iframe Embed" button below</li>
+                                <li>• <strong>Stream Registration:</strong> Camera added to go2rtc successfully</li>
+                                <li>• <strong>Connection Failed:</strong> Unable to establish video stream</li>
+                                <li>• <strong>Possible Issues:</strong> Network connectivity, camera offline, or credentials</li>
+                                <li>• <strong>RTSPS Protocol:</strong> Secure RTSP with encryption enabled</li>
+                                <li>• <strong>Troubleshooting:</strong> Verify camera is accessible and credentials are correct</li>
+                                <li>• <strong>Alternative:</strong> Try changing protocol or check camera settings</li>
                               </>
                             )}
                           </ul>
@@ -602,8 +548,9 @@ export default function LiveViewPage() {
                 </div>
               )}
 
-              {/* Manual Connect Button */}
-              {selectedCamera && connectionStatus === 'disconnected' && (
+              {/* Manual Connect Button - Only for non-RTSP cameras */}
+              {selectedCamera && connectionStatus === 'disconnected' && 
+               selectedCamera.protocol !== 'rtsp' && selectedCamera.protocol !== 'rtsps' && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                   <div className="text-center max-w-md mx-4">
                     <VideoCameraIcon className="h-12 w-12 text-white mx-auto mb-4" />
@@ -615,19 +562,7 @@ export default function LiveViewPage() {
                     </p>
                     
                     {/* Show different options based on camera type */}
-                    {(selectedCamera.protocol === 'rtsp' || selectedCamera.protocol === 'rtsps') ? (
-                      <div className="space-y-3">
-                        <button
-                          onClick={() => connectToCamera(selectedCamera)}
-                          className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                        >
-                          🎥 Connect to {selectedCamera.protocol.toUpperCase()} Stream
-                        </button>
-                        <p className="text-sm text-gray-400 text-center">
-                          Native H.264 playback via {selectedCamera.protocol === 'rtsps' ? 'secure proxy' : 'HLS/WebRTC'}
-                        </p>
-                      </div>
-                    ) : selectedCamera.streamUrl?.includes('monitor.ui.com') ? (
+                    {selectedCamera.streamUrl?.includes('monitor.ui.com') ? (
                       <div className="space-y-3">
                         <p className="text-yellow-300 text-sm mb-4">
                           ⚠️ UniFi Protect detected - Web interface, not direct video stream

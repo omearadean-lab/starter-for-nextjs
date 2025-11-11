@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # UMA AEye Monitoring System
+  cctv-app:
+    build:
+      context: .
+      target: production
+    container_name: uma-aeye-cctv
+    ports:
+      - "3000:3000"     # Next.js application
+      - "1984:1984"     # go2rtc API and web interface
+      - "8554:8554"     # RTSP server
+      - "8555:8555"     # WebRTC server
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APPWRITE_PROJECT_ID=${NEXT_PUBLIC_APPWRITE_PROJECT_ID}
+      - NEXT_PUBLIC_APPWRITE_PROJECT_NAME=${NEXT_PUBLIC_APPWRITE_PROJECT_NAME}
+      - NEXT_PUBLIC_APPWRITE_ENDPOINT=${NEXT_PUBLIC_APPWRITE_ENDPOINT}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./go2rtc.yaml:/app/go2rtc.yaml:ro
+      - go2rtc_data:/app/data
+    restart: unless-stopped
+    networks:
+      - cctv-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development service (alternative)
+  cctv-dev:
+    build:
+      context: .
+      target: dev
+    container_name: uma-aeye-cctv-dev
+    ports:
+      - "3000:3000"
+      - "1984:1984"
+      - "8554:8554"
+      - "8555:8555"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_APPWRITE_PROJECT_ID=${NEXT_PUBLIC_APPWRITE_PROJECT_ID}
+      - NEXT_PUBLIC_APPWRITE_PROJECT_NAME=${NEXT_PUBLIC_APPWRITE_PROJECT_NAME}
+      - NEXT_PUBLIC_APPWRITE_ENDPOINT=${NEXT_PUBLIC_APPWRITE_ENDPOINT}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - cctv-network
+    profiles:
+      - dev
+
+volumes:
+  go2rtc_data:
+    driver: local
+
+networks:
+  cctv-network:
+    driver: bridge
